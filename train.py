@@ -95,3 +95,9 @@ if __name__ == '__main__':
 
     train_loss.extend(train_loss_2)
     train_acc.extend(train_acc_2)
+
+    header("Saving the model to file...")
+    MODEL_PATH = "../mnist_cnn.pt"
+    torch.save(new_model.state_dict(), MODEL_PATH)
+    print(f"Saved model to {MODEL_PATH}")
+    double_plot(label1="Training Loss", data1=train_loss, label2="Training Accuracy", data2=train_acc)
