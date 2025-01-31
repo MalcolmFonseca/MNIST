@@ -30,5 +30,68 @@ def det_device_config(train_kwargs,test_kwargs):
                        'shuffle': True}
         train_kwargs.update(cuda_kwargs)
         test_kwargs.update(cuda_kwargs)
-        
+
     return device, train_kwargs, test_kwargs
+
+if __name__ == '__main__':
+    train_kwargs = {'batch_size': BATCH_SIZE}
+    test_kwargs = {'batch_size': TEST_BATCH_SIZE}
+    device, train_kwargs, test_kwargs = det_device_config(train_kwargs, test_kwargs)
+    model = CNN().to(device)
+
+    header("Loading datasets...")
+    train_data = datasets.MNIST('../data', train=True, download=True, transform=normalization_transform)
+    test_data = datasets.MNIST('../data', train=False, transform=normalization_transform)
+    print("Done loading datasets")
+
+    plot_distribution('Distribution of Labels in Training Set', train_data)
+    plot_distribution('Distribution of Labels in Testing Set', test_data)
+
+    header("Training the model...")
+    optimizer = RMSprop(model.parameters(), lr=LEARNING_RATE)
+    train_loss, train_acc = train_model(
+    model,
+    device,
+    data_loader=DataLoader(train_data,**train_kwargs),
+    loss_func=torch.nn.CrossEntropyLoss(),
+    optimizer=optimizer,
+    num_epochs=SESSION_1_EPOCH_COUNT
+    )
+    print("Done training")
+
+    header('Saving checkpoint 1...')
+    checkpoint_1_path = "../checkpoint1.pt"
+    torch.save({
+    'model_state_dict': model.state_dict(),
+    'optimizer_state_dict': optimizer.state_dict(),
+    }, checkpoint_1_path)
+    print("Saved")
+
+    header('Loading checkpoint 1...')
+    checkpoint = torch.load(checkpoint_1_path)
+    new_model = CNN().to(device)
+    new_model.load_state_dict(checkpoint['model_state_dict'])
+    new_optimizer = RMSprop(new_model.parameters(), lr=LEARNING_RATE)
+    new_optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    print("Loaded")
+
+    print("Checking Accuracy...")
+    old_test_accuracy = test_model(model, DataLoader(test_data, **test_kwargs), device)
+    new_test_accuracy = test_model(new_model, DataLoader(test_data, **test_kwargs), device)
+    print("Loaded Accuracy: ", new_test_accuracy)
+    print("Expected Accuracy: ", old_test_accuracy)
+    print("Done")
+
+    header("Training the model...")
+    train_loss_2, train_acc_2 = train_model(
+    new_model,
+    device,
+    data_loader=DataLoader(train_data,**train_kwargs),
+    loss_func=torch.nn.CrossEntropyLoss(),
+    optimizer=new_optimizer,
+    num_epochs=SESSION_2_EPOCH_COUNT
+    )
+    print('Done training')
+
+    train_loss.extend(train_loss_2)
+    train_acc.extend(train_acc_2)
